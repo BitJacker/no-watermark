@@ -1,0 +1,25 @@
+[package]
+name = "nowm-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command line interface for no-watermark."
+keywords.workspace = true
+categories.workspace = true
+
+[[bin]]
+name = "no-watermark"
+path = "src/main.rs"
+
+[dependencies]
+nowm-core = { workspace = true }
+nowm-i18n = { workspace = true }
+anyhow = { workspace = true }
+serde_json = { workspace = true }
+clap = { version = "4", features = ["derive", "wrap_help"] }
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"

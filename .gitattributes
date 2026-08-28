@@ -1,0 +1,9 @@
+# Keep the repository normalised on LF. Shell scripts in particular must stay
+# LF or they will not run on Linux after a Windows checkout.
+* text=auto eol=lf
+
+*.sh   text eol=lf
+*.wxs  text eol=lf
+*.rtf  binary
+*.png  binary
+*.ico  binary

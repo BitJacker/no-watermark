@@ -1,0 +1,33 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/nowm-core",
+    "crates/nowm-i18n",
+    "crates/nowm-cli",
+    "crates/nowm-gui",
+]
+
+[workspace.package]
+version = "1.0.0"
+edition = "2021"
+rust-version = "1.82"
+authors = ["Giacomo Giordano"]
+license = "MIT"
+repository = "https://github.com/BitJacker/no-watermark"
+homepage = "https://github.com/BitJacker/no-watermark"
+description = "Detect and strip invisible Unicode watermarks, hidden payloads and stylometric fingerprints from AI chat output."
+keywords = ["unicode", "watermark", "sanitizer", "ai", "security"]
+categories = ["command-line-utilities", "text-processing"]
+
+[workspace.dependencies]
+nowm-core = { path = "crates/nowm-core", version = "1.0.0" }
+nowm-i18n = { path = "crates/nowm-i18n", version = "1.0.0" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+anyhow = "1"
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

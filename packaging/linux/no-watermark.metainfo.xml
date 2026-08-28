@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>io.github.bitjacker.no-watermark</id>
+  <metadata_license>MIT</metadata_license>
+  <project_license>MIT</project_license>
+
+  <name>no-watermark</name>
+  <summary>Strip invisible Unicode watermarks from AI chat output</summary>
+  <summary xml:lang="it">Rimuove i watermark Unicode invisibili dall'output delle chat IA</summary>
+
+  <developer id="io.github.bitjacker">
+    <name>Giacomo Giordano</name>
+  </developer>
+
+  <description>
+    <p>
+      Text copied out of an AI assistant can carry characters you never see:
+      Unicode tag characters, zero-width joiners, variation selectors,
+      bidirectional controls, confusable letters and exotic whitespace.
+      Some are harmless typographic habits; others are used to smuggle
+      instructions past a human reader and straight into a language model.
+    </p>
+    <p xml:lang="it">
+      Il testo copiato da un assistente IA puo' contenere caratteri che non
+      vedi: caratteri tag Unicode, giunzioni a larghezza zero, selettori di
+      variante, controlli bidirezionali, lettere confondibili e spaziature
+      anomale. Alcuni sono innocue abitudini tipografiche, altri servono a
+      far passare istruzioni sotto gli occhi di chi legge e dritte dentro un
+      modello linguistico.
+    </p>
+    <p>no-watermark finds them, decodes what was hidden, and gives back clean text.</p>
+    <p xml:lang="it">no-watermark li trova, decodifica cio' che era nascosto e restituisce testo pulito.</p>
+  </description>
+
+  <launchable type="desktop-id">no-watermark.desktop</launchable>
+
+  <url type="homepage">https://github.com/BitJacker/no-watermark</url>
+  <url type="bugtracker">https://github.com/BitJacker/no-watermark/issues</url>
+
+  <provides>
+    <binary>no-watermark</binary>
+    <binary>no-watermark-gui</binary>
+  </provides>
+
+  <categories>
+    <category>Utility</category>
+    <category>Security</category>
+  </categories>
+
+  <content_rating type="oars-1.1" />
+
+  <releases>
+    <release version="1.0.0" date="2026-08-28">
+      <description>
+        <p>First release.</p>
+      </description>
+    </release>
+  </releases>
+</component>

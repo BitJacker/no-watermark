@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=no-watermark
+GenericName=AI text sanitiser
+GenericName[it]=Sanificatore di testo IA
+Comment=Strip invisible watermarks and hidden payloads from AI chat output
+Comment[it]=Rimuove watermark invisibili e contenuti nascosti dall'output delle chat IA
+Exec=no-watermark-gui %f
+TryExec=no-watermark-gui
+Icon=no-watermark
+Terminal=false
+Categories=Utility;TextTools;Security;
+Keywords=unicode;watermark;ai;chatgpt;claude;gemini;text;clean;sanitise;
+Keywords[it]=unicode;watermark;ia;chatgpt;claude;gemini;testo;pulizia;
+MimeType=text/plain;text/markdown;
+StartupNotify=true
+StartupWMClass=no-watermark

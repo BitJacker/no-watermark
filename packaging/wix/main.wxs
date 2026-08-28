@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Windows Installer definition for no-watermark.
+
+  Built with the WiX Toolset v6 command line:
+
+      dotnet tool install --global wix
+      wix extension add -g WixToolset.UI.wixext
+      wix build packaging/wix/main.wxs -ext WixToolset.UI.wixext -o no-watermark.msi
+
+  Paths are relative to the repository root, so run the command from there.
+  The release build must exist first: cargo build --release.
+-->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+
+  <!-- Overridden from the command line with: wix build -d Version=1.2.3 -->
+  <?ifndef Version ?>
+  <?define Version = "1.0.0" ?>
+  <?endif ?>
+
+  <Package
+      Name="no-watermark"
+      Manufacturer="Giacomo Giordano"
+      Version="$(var.Version)"
+      UpgradeCode="326B145A-2305-4A14-A053-F12CD387839F"
+      Scope="perMachine"
+      Compressed="yes">
+
+    <SummaryInformation
+        Description="Detect and strip invisible Unicode watermarks from AI chat output"
+        Manufacturer="Giacomo Giordano" />
+
+    <MajorUpgrade
+        AllowSameVersionUpgrades="yes"
+        DowngradeErrorMessage="A newer version of no-watermark is already installed." />
+
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="AppIcon" SourceFile="assets\icon.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/BitJacker/no-watermark" />
+    <Property Id="ARPNOREPAIR" Value="1" />
+
+    <!-- Licence text shown by the installer UI. -->
+    <WixVariable Id="WixUILicenseRtf" Value="packaging\wix\license.rtf" />
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="no-watermark" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="AppMenuFolder" Name="no-watermark" />
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="no-watermark" Level="1"
+             Description="The desktop application and the command line tool.">
+      <ComponentGroupRef Id="AppComponents" />
+    </Feature>
+
+    <ComponentGroup Id="AppComponents">
+      <Component Id="GuiExe" Directory="INSTALLFOLDER">
+        <File Id="NoWatermarkGuiExe"
+              Source="target\release\no-watermark-gui.exe"
+              KeyPath="yes" />
+      </Component>
+
+      <!-- The CLI directory is put on PATH so `no-watermark` works in any
+           shell after installation. -->
+      <Component Id="CliExe" Directory="INSTALLFOLDER">
+        <File Id="NoWatermarkExe"
+              Source="target\release\no-watermark.exe"
+              KeyPath="yes" />
+        <Environment Id="PathEntry"
+                     Name="PATH"
+                     Value="[INSTALLFOLDER]"
+                     Permanent="no"
+                     Part="last"
+                     Action="set"
+                     System="yes" />
+      </Component>
+
+      <Component Id="Docs" Directory="INSTALLFOLDER">
+        <File Id="ReadmeFile" Source="README.md" KeyPath="yes" />
+        <File Id="LicenseFile" Source="LICENSE" />
+      </Component>
+
+      <Component Id="StartMenuShortcut" Directory="AppMenuFolder" Guid="*">
+        <Shortcut Id="GuiShortcut"
+                  Name="no-watermark"
+                  Description="Strip invisible watermarks from AI chat output"
+                  Target="[INSTALLFOLDER]no-watermark-gui.exe"
+                  WorkingDirectory="INSTALLFOLDER"
+                  Icon="AppIcon" />
+        <RemoveFolder Id="RemoveAppMenuFolder" Directory="AppMenuFolder" On="uninstall" />
+        <RegistryValue Root="HKCU"
+                       Key="Software\BitJacker\no-watermark"
+                       Name="installed"
+                       Type="integer"
+                       Value="1"
+                       KeyPath="yes" />
+      </Component>
+    </ComponentGroup>
+  </Package>
+</Wix>

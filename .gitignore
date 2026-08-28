@@ -1,0 +1,15 @@
+# Build output
+/target
+/target-*
+/dist
+
+# Packaging scratch
+/packaging/wix/*.wixpdb
+*.msi
+*.deb
+*.rpm
+*.AppImage
+
+# Local scratch
+sample.txt
+*.bak

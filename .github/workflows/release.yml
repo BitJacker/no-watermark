@@ -1,0 +1,166 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (without the leading v)"
+        required: true
+        default: "1.0.0"
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # -------------------------------------------------------------------------
+  linux:
+    name: Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Resolve version
+        id: v
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libxkbcommon-dev libwayland-dev libxcb1-dev
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Test
+        run: cargo test --workspace --release --locked
+
+      - name: Portable tarball
+        run: |
+          VERSION="${{ steps.v.outputs.version }}"
+          STAGE="no-watermark-${VERSION}-linux-x86_64"
+          mkdir -p "dist/$STAGE"
+          cp target/release/no-watermark target/release/no-watermark-gui "dist/$STAGE/"
+          cp README.md LICENSE "dist/$STAGE/"
+          cp packaging/linux/no-watermark.desktop "dist/$STAGE/"
+          cp assets/icon-256.png "dist/$STAGE/no-watermark.png"
+          tar -C dist -czf "dist/$STAGE.tar.gz" "$STAGE"
+          rm -rf "dist/$STAGE"
+
+      - name: Debian package
+        run: packaging/linux/build-deb.sh "${{ steps.v.outputs.version }}"
+
+      - name: RPM package
+        run: |
+          cargo install cargo-generate-rpm --locked
+          cargo generate-rpm -p crates/nowm-gui --auto-req builtin -o dist/
+
+      - name: AppImage
+        run: packaging/linux/build-appimage.sh "${{ steps.v.outputs.version }}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: dist/*
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  windows:
+    name: Windows x86_64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Resolve version
+        id: v
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "version=${{ inputs.version }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "version=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        run: cargo build --release --locked
+
+      - name: Test
+        run: cargo test --workspace --release --locked
+
+      - name: Portable zip
+        shell: bash
+        run: |
+          VERSION="${{ steps.v.outputs.version }}"
+          STAGE="no-watermark-${VERSION}-windows-x86_64"
+          mkdir -p "dist/$STAGE"
+          cp target/release/no-watermark.exe target/release/no-watermark-gui.exe "dist/$STAGE/"
+          cp README.md LICENSE "dist/$STAGE/"
+          powershell -Command "Compress-Archive -Path 'dist/$STAGE/*' -DestinationPath 'dist/$STAGE.zip'"
+          rm -rf "dist/$STAGE"
+
+      - name: Build MSI
+        shell: pwsh
+        run: |
+          dotnet tool install --global wix
+          wix extension add -g WixToolset.UI.wixext
+          $version = "${{ steps.v.outputs.version }}"
+          wix build packaging/wix/main.wxs `
+            -ext WixToolset.UI.wixext `
+            -d Version=$version `
+            -arch x64 `
+            -o "dist/no-watermark-$version-x86_64.msi"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: dist/*
+          if-no-files-found: error
+
+  # -------------------------------------------------------------------------
+  publish:
+    name: Publish release
+    needs: [linux, windows]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Collect and checksum
+        run: |
+          mkdir -p dist
+          find artifacts -type f -exec cp {} dist/ \;
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          ls -la
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG="v${{ inputs.version }}"
+            git tag -f "$TAG" && git push -f origin "$TAG" || true
+          else
+            TAG="${GITHUB_REF_NAME}"
+          fi
+          gh release create "$TAG" dist/* \
+            --title "no-watermark $TAG" \
+            --generate-notes \
+            --verify-tag || \
+          gh release upload "$TAG" dist/* --clobber

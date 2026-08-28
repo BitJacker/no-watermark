@@ -1,0 +1,18 @@
+[package]
+name = "nowm-core"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Core detection and sanitisation engine for no-watermark."
+keywords.workspace = true
+categories.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+unicode-normalization = "0.1"
+
+[features]
+default = []

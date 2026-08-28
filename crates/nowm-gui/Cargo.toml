@@ -1,0 +1,48 @@
+[package]
+name = "nowm-gui"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Desktop interface for no-watermark."
+
+[[bin]]
+name = "no-watermark-gui"
+path = "src/main.rs"
+
+[dependencies]
+arboard = "3.6.1"
+eframe = "0.31.1"
+egui = "0.31.1"
+nowm-core = { workspace = true }
+nowm-i18n = { workspace = true }
+rfd = "0.17.2"
+
+[target.'cfg(windows)'.build-dependencies]
+winresource = "0.1"
+
+# RPM packaging. Built with:
+#   cargo install cargo-generate-rpm
+#   cargo build --release && cargo generate-rpm -p crates/nowm-gui
+[package.metadata.generate-rpm]
+name = "no-watermark"
+summary = "Strip invisible Unicode watermarks from AI chat output"
+license = "MIT"
+url = "https://github.com/BitJacker/no-watermark"
+assets = [
+    { source = "target/release/no-watermark", dest = "/usr/bin/no-watermark", mode = "755" },
+    { source = "target/release/no-watermark-gui", dest = "/usr/bin/no-watermark-gui", mode = "755" },
+    { source = "packaging/linux/no-watermark.desktop", dest = "/usr/share/applications/no-watermark.desktop", mode = "644" },
+    { source = "packaging/linux/no-watermark.metainfo.xml", dest = "/usr/share/metainfo/io.github.bitjacker.no-watermark.metainfo.xml", mode = "644" },
+    { source = "assets/icon-16.png", dest = "/usr/share/icons/hicolor/16x16/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-32.png", dest = "/usr/share/icons/hicolor/32x32/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-48.png", dest = "/usr/share/icons/hicolor/48x48/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-64.png", dest = "/usr/share/icons/hicolor/64x64/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-128.png", dest = "/usr/share/icons/hicolor/128x128/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-256.png", dest = "/usr/share/icons/hicolor/256x256/apps/no-watermark.png", mode = "644" },
+    { source = "assets/icon-512.png", dest = "/usr/share/icons/hicolor/512x512/apps/no-watermark.png", mode = "644" },
+    { source = "LICENSE", dest = "/usr/share/doc/no-watermark/LICENSE", mode = "644", doc = true },
+    { source = "README.md", dest = "/usr/share/doc/no-watermark/README.md", mode = "644", doc = true },
+]

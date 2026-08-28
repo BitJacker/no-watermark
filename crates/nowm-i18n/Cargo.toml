@@ -1,0 +1,13 @@
+[package]
+name = "nowm-i18n"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "English and Italian user-facing strings for no-watermark."
+
+[dependencies]
+nowm-core = { workspace = true }
+sys-locale = "0.3"
