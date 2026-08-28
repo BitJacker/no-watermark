@@ -8,7 +8,7 @@ members = [
 ]
 
 [workspace.package]
-version = "1.0.0"
+version = "1.0.1"
 edition = "2021"
 rust-version = "1.82"
 authors = ["Giacomo Giordano"]
@@ -20,8 +20,8 @@ keywords = ["unicode", "watermark", "sanitizer", "ai", "security"]
 categories = ["command-line-utilities", "text-processing"]
 
 [workspace.dependencies]
-nowm-core = { path = "crates/nowm-core", version = "1.0.0" }
-nowm-i18n = { path = "crates/nowm-i18n", version = "1.0.0" }
+nowm-core = { path = "crates/nowm-core", version = "1.0.1" }
+nowm-i18n = { path = "crates/nowm-i18n", version = "1.0.1" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 anyhow = "1"

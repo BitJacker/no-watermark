@@ -5,6 +5,8 @@
 //! deliberately absent: NFKC already folds those, so duplicating them would
 //! only create two ways to be wrong.
 
+use crate::report::Category;
+
 /// The ASCII letter this character is trying to look like, if any.
 pub fn target(ch: char) -> Option<char> {
     let t = match ch {
@@ -99,8 +101,30 @@ pub fn target(ch: char) -> Option<char> {
 
 /// A character that can take part in a word for the purposes of homoglyph
 /// context detection.
+///
+/// Apostrophes and hyphens are deliberately *not* word characters, even
+/// though that splits `don't` in two. The cleaner rewrites `U+201A` and the
+/// dashes into ASCII, so counting them as word characters would let a word
+/// boundary move between one run and the next, and a confusable that was
+/// left alone on the first pass would be folded on the second.
 pub fn is_word_char(ch: char) -> bool {
-    ch.is_alphanumeric() || ch == '_' || ch == '\'' || ch == '-'
+    ch.is_alphanumeric() || ch == '_'
+}
+
+/// Characters that neither belong to a word nor break one.
+///
+/// A zero-width space inside `passw<ZWSP>ord` must not hide the fact that
+/// this is one Latin word, and since the cleaner deletes it anyway, treating
+/// it as a boundary would give a different answer on a second run.
+fn is_transparent(ch: char) -> bool {
+    matches!(
+        crate::chars::classify(ch).map(|i| i.category),
+        Some(Category::Invisible)
+            | Some(Category::Tag)
+            | Some(Category::Bidi)
+            | Some(Category::VariationSelector)
+            | Some(Category::Deprecated)
+    )
 }
 
 /// Decide, for every character index in `text`, whether a confusable should be
@@ -120,24 +144,28 @@ pub fn plan(text: &str) -> Vec<(usize, char)> {
             i += 1;
             continue;
         }
-        let start = i;
-        while i < chars.len() && is_word_char(chars[i]) {
-            i += 1;
-        }
-        let word = &chars[start..i];
 
         let mut ascii_letters = 0usize;
         let mut confusables: Vec<(usize, char)> = Vec::new();
         let mut foreign_non_confusable = 0usize;
 
-        for (offset, &ch) in word.iter().enumerate() {
+        while i < chars.len() {
+            let ch = chars[i];
+            if is_transparent(ch) {
+                i += 1;
+                continue;
+            }
+            if !is_word_char(ch) {
+                break;
+            }
             if ch.is_ascii_alphanumeric() {
                 ascii_letters += 1;
             } else if let Some(t) = target(ch) {
-                confusables.push((start + offset, t));
+                confusables.push((i, t));
             } else if !ch.is_ascii() {
                 foreign_non_confusable += 1;
             }
+            i += 1;
         }
 
         // Mixed-script word with a Latin majority and no unrelated foreign

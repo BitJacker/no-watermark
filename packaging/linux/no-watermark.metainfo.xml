@@ -50,6 +50,11 @@
   <content_rating type="oars-1.1" />
 
   <releases>
+    <release version="1.0.1" date="2026-08-28">
+      <description>
+        <p>Fixes three cases where cleaning the same text twice gave two different answers.</p>
+      </description>
+    </release>
     <release version="1.0.0" date="2026-08-28">
       <description>
         <p>First release.</p>

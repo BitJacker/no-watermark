@@ -1979,7 +1979,7 @@ checksum = "2bf50223579dc7cdcfb3bfcacf7069ff68243f8c363f62ffa99cf000a6b9c451"
 
 [[package]]
 name = "nowm-cli"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "clap",
@@ -1991,7 +1991,7 @@ dependencies = [
 
 [[package]]
 name = "nowm-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "serde",
  "unicode-normalization",
@@ -1999,7 +1999,7 @@ dependencies = [
 
 [[package]]
 name = "nowm-gui"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "arboard",
  "eframe",
@@ -2012,7 +2012,7 @@ dependencies = [
 
 [[package]]
 name = "nowm-i18n"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "nowm-core",
  "sys-locale",

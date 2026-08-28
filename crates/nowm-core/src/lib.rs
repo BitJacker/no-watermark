@@ -62,6 +62,21 @@ const CONFUSABLE_NAME: &str = "CONFUSABLE LETTER";
 
 /// Analyse `text` and produce both a report and the cleaned output.
 pub fn analyze(text: &str, profile: &Profile) -> Report {
+    // Normalisation happens before anything is inspected, so every later
+    // decision sees exactly the text that will be emitted. Running it at the
+    // end instead made cleaning non-idempotent: NFKC expands U+00BE into
+    // "3<FRACTION SLASH>4", and the fraction slash would only be folded on a
+    // second run. The cost is that with `nfkc` enabled the reported offsets
+    // refer to the normalised text; the report-only profile leaves NFKC off,
+    // so positions stay exact wherever they are actually read.
+    let normalised;
+    let text: &str = if profile.nfkc {
+        normalised = text.nfkc().collect::<String>();
+        &normalised
+    } else {
+        text
+    };
+
     let chars: Vec<char> = text.chars().collect();
     let scan = payload::scan(&chars);
 
@@ -302,6 +317,13 @@ fn adjacent_to_dash(chars: &[char], index: usize) -> bool {
 }
 
 fn post_process(mut text: String, profile: &Profile) -> String {
+    // The second half of the normalisation sandwich. `analyze` normalises
+    // before inspecting so that expansions get folded; this pass is needed
+    // because *removing* a character can enable a canonical reordering that
+    // was previously blocked. A BOM sitting between two Arabic combining
+    // marks keeps them apart; delete it and they become adjacent, and NFKC
+    // then sorts them by combining class. Without this, the first run would
+    // leave text that a second run would still change.
     if profile.nfkc {
         text = text.nfkc().collect();
     }
@@ -642,6 +664,185 @@ mod tests {
         let once = clean(dirty, &Profile::aggressive());
         let twice = clean(&once, &Profile::aggressive());
         assert_eq!(once, twice);
+    }
+
+    // -----------------------------------------------------------------
+    // Invariants that must hold for *any* input, not just the handcrafted
+    // strings above. Every case here has been a real bug class in tools of
+    // this kind: a panic on a lone surrogate-adjacent codepoint, a cleaner
+    // that is not idempotent, a "report only" mode that quietly edits.
+    // -----------------------------------------------------------------
+
+    /// Deterministic xorshift, so a failure is always reproducible and the
+    /// crate stays dependency free.
+    struct Rng(u64);
+
+    impl Rng {
+        fn next(&mut self) -> u64 {
+            self.0 ^= self.0 << 13;
+            self.0 ^= self.0 >> 7;
+            self.0 ^= self.0 << 17;
+            self.0
+        }
+
+        /// Draw from ranges that are deliberately dense in the characters
+        /// this crate reasons about, rather than uniform over all of Unicode.
+        fn char(&mut self) -> char {
+            const RANGES: [(u32, u32); 12] = [
+                (0x0020, 0x007E),   // ASCII
+                (0x00A0, 0x00FF),   // Latin-1, includes NBSP
+                (0x0400, 0x045F),   // Cyrillic, includes the confusables
+                (0x0600, 0x06FF),   // Arabic, where joiners are legitimate
+                (0x2000, 0x206F),   // spaces, joiners, bidi controls
+                (0x2010, 0x2027),   // dashes and quotes
+                (0xFE00, 0xFE0F),   // variation selectors
+                (0xFEFF, 0xFEFF),   // BOM
+                (0x1F300, 0x1F5FF), // pictographs
+                (0xE0000, 0xE007F), // tag block
+                (0xE0100, 0xE01EF), // supplementary variation selectors
+                (0x0009, 0x000A),   // tab and newline
+            ];
+            let (lo, hi) = RANGES[(self.next() % RANGES.len() as u64) as usize];
+            let cp = lo + (self.next() % (hi - lo + 1) as u64) as u32;
+            char::from_u32(cp).unwrap_or('?')
+        }
+
+        fn string(&mut self, len: usize) -> String {
+            (0..len).map(|_| self.char()).collect()
+        }
+
+        /// A string of random length. Kept as one call so the length draw and
+        /// the content draw do not need two simultaneous borrows.
+        fn sample(&mut self) -> String {
+            let len = (self.next() % 120) as usize;
+            self.string(len)
+        }
+    }
+
+    fn profiles() -> [Profile; 4] {
+        [
+            Profile::scan(),
+            Profile::safe(),
+            Profile::standard(),
+            Profile::aggressive(),
+        ]
+    }
+
+    #[test]
+    fn scan_never_edits_any_input() {
+        let mut rng = Rng(0x5EED_1234_ABCD_0001);
+        for _ in 0..400 {
+            let input = rng.sample();
+            let report = analyze(&input, &Profile::scan());
+            assert_eq!(report.cleaned, input, "scan altered {input:?}");
+            assert_eq!(report.stats.removed, 0);
+            assert_eq!(report.stats.replaced, 0);
+        }
+    }
+
+    #[test]
+    fn cleaning_is_idempotent_for_every_profile() {
+        let mut rng = Rng(0x5EED_1234_ABCD_0002);
+        for _ in 0..400 {
+            let input = rng.sample();
+            for profile in profiles() {
+                let once = clean(&input, &profile);
+                let twice = clean(&once, &profile);
+                assert_eq!(once, twice, "not idempotent for {input:?}");
+            }
+        }
+    }
+
+    #[test]
+    fn safe_profile_preserves_every_visible_glyph() {
+        let mut rng = Rng(0x5EED_1234_ABCD_0003);
+        for _ in 0..400 {
+            let input = rng.sample();
+            let cleaned = clean(&input, &Profile::safe());
+
+            // Whatever `safe` did, the visible characters must come through in
+            // the same order and with nothing added.
+            let visible = |s: &str| -> String {
+                s.chars()
+                    .filter(|c| {
+                        !matches!(
+                            classify(*c).map(|i| i.category),
+                            Some(Category::Invisible)
+                                | Some(Category::Tag)
+                                | Some(Category::Bidi)
+                                | Some(Category::VariationSelector)
+                                | Some(Category::Deprecated)
+                        )
+                    })
+                    .collect()
+            };
+            assert_eq!(visible(&input), visible(&cleaned), "safe changed {input:?}");
+        }
+    }
+
+    #[test]
+    fn finding_positions_always_point_inside_the_input() {
+        let mut rng = Rng(0x5EED_1234_ABCD_0004);
+        for _ in 0..200 {
+            let input = rng.sample();
+            let report = analyze(&input, &Profile::standard());
+            for f in &report.findings {
+                assert!(input.is_char_boundary(f.byte_offset));
+                assert_eq!(
+                    input[f.byte_offset..].chars().next(),
+                    char::from_u32(f.codepoint),
+                    "finding does not match the input at its own offset"
+                );
+                assert!(f.line >= 1 && f.column >= 1);
+            }
+            for p in &report.payloads {
+                assert!(p.start_char + p.len_chars <= input.chars().count());
+            }
+        }
+    }
+
+    // The next three were all found by the randomised idempotence test, and
+    // each is a distinct way for the analysis to disagree with its own output.
+
+    #[test]
+    fn nfkc_expansions_are_folded_in_the_same_run() {
+        // U+00BE normalises to "3<FRACTION SLASH>4", and the fraction slash
+        // is itself something the typography rule rewrites.
+        let r = analyze("\u{00BE} cup", &Profile::aggressive());
+        assert_eq!(r.cleaned, "3/4 cup");
+        assert_eq!(clean(&r.cleaned, &Profile::aggressive()), r.cleaned);
+    }
+
+    #[test]
+    fn removal_that_enables_reordering_still_settles() {
+        // A BOM between two Arabic combining marks blocks canonical ordering.
+        // Removing it makes them adjacent, and NFKC then sorts them by
+        // combining class, so normalisation has to run again afterwards.
+        let input = "\u{6CD}\u{6D9}\u{FEFF}\u{65F}";
+        let once = clean(input, &Profile::aggressive());
+        assert_eq!(clean(&once, &Profile::aggressive()), once);
+    }
+
+    #[test]
+    fn joiners_do_not_split_a_word_for_confusable_detection() {
+        // The Cyrillic 'o' is inside one Latin word; the zero-width space
+        // must not hide that, or the fold would only happen on a second run.
+        let r = analyze("passw\u{200B}\u{043E}rd", &Profile::standard());
+        assert_eq!(r.cleaned, "password");
+    }
+
+    #[test]
+    fn handles_degenerate_inputs() {
+        for profile in profiles() {
+            assert_eq!(clean("", &profile), "");
+            // A very long run of carriers must not blow up or hang.
+            let long = "\u{200B}".repeat(50_000);
+            let _ = analyze(&long, &profile);
+            let tags: String = (0..10_000)
+                .map(|i| tag((b'a' + (i % 26) as u8) as char))
+                .collect();
+            let _ = analyze(&tags, &profile);
+        }
     }
 
     fn tag(c: char) -> char {
