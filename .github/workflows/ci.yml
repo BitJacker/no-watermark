@@ -47,8 +47,8 @@ jobs:
       - name: Tests
         run: cargo test --workspace
 
-      - name: Icons are reproducible
+      # Compares decoded pixels, not file bytes: zlib output differs between
+      # versions, so a byte diff would fail on an unrelated toolchain change.
+      - name: Icons match their generator
         if: runner.os == 'Linux'
-        run: |
-          python3 packaging/make_icons.py
-          git diff --exit-code assets/
+        run: python3 packaging/make_icons.py --check

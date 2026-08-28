@@ -49,8 +49,11 @@ pub fn apply(ctx: &Context, dark: bool) {
         visuals.panel_fill = Color32::from_rgb(0x14, 0x17, 0x1F);
         visuals.window_fill = Color32::from_rgb(0x14, 0x17, 0x1F);
         visuals.extreme_bg_color = Color32::from_rgb(0x0E, 0x10, 0x17);
+        // The width is spelled `1.0_f32` because `Stroke::new` is generic over
+        // `Into<f32>`, and an unsuffixed literal there triggers the
+        // float_literal_f32_fallback lint.
         visuals.widgets.noninteractive.bg_stroke =
-            Stroke::new(1.0, Color32::from_rgb(0x25, 0x2A, 0x36));
+            Stroke::new(1.0_f32, Color32::from_rgb(0x25, 0x2A, 0x36));
     }
     ctx.set_visuals(visuals);
 

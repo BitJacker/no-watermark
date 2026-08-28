@@ -203,9 +203,9 @@ cargo build --release
 packaging/linux/build-deb.sh
 packaging/linux/build-appimage.sh
 
-# Windows: MSI (needs the WiX Toolset v6)
-dotnet tool install --global wix
-wix extension add -g WixToolset.UI.wixext
+# Windows: MSI (needs the WiX Toolset v5; v6+ is behind a licence EULA)
+dotnet tool install --global wix --version 5.*
+wix extension add -g WixToolset.UI.wixext/5.0.2
 cargo build --release
 wix build packaging/wix/main.wxs -ext WixToolset.UI.wixext -o no-watermark.msi
 ```

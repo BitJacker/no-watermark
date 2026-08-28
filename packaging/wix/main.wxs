@@ -2,11 +2,15 @@
 <!--
   Windows Installer definition for no-watermark.
 
-  Built with the WiX Toolset v6 command line:
+  Built with the WiX Toolset v5 command line:
 
-      dotnet tool install --global wix
-      wix extension add -g WixToolset.UI.wixext
+      dotnet tool install --global wix --version 5.*
+      wix extension add -g WixToolset.UI.wixext/5.0.2
       wix build packaging/wix/main.wxs -ext WixToolset.UI.wixext -o no-watermark.msi
+
+  v5 is pinned deliberately: from v6 the toolset requires accepting the Open
+  Source Maintenance Fee EULA, which is a licensing decision for whoever is
+  building, not something to bake into a repository.
 
   Paths are relative to the repository root, so run the command from there.
   The release build must exist first: cargo build --release.
@@ -87,7 +91,7 @@
         <File Id="LicenseFile" Source="LICENSE" />
       </Component>
 
-      <Component Id="StartMenuShortcut" Directory="AppMenuFolder" Guid="*">
+      <Component Id="StartMenuShortcut" Directory="AppMenuFolder">
         <Shortcut Id="GuiShortcut"
                   Name="no-watermark"
                   Description="Strip invisible watermarks from AI chat output"

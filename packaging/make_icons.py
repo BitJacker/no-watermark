@@ -8,12 +8,14 @@ size and format is regenerated.
     python packaging/make_icons.py
 
 Outputs PNGs at several sizes plus a Windows .ico containing all of them.
+Pass --check to verify the committed assets still match, without writing.
 """
 
 from __future__ import annotations
 
 import math
 import struct
+import sys
 import zlib
 from pathlib import Path
 
@@ -151,18 +153,52 @@ def ico_bytes(pngs: dict[int, bytes]) -> bytes:
     return header + entries + blobs
 
 
+def png_pixels(data: bytes) -> bytes:
+    """Extract the raw, uncompressed scanlines from one of our own PNGs.
+
+    Comparison has to happen on pixels rather than on file bytes: zlib's
+    output is not identical across versions, so a byte-for-byte check would
+    fail on any machine whose zlib differs from the one that last ran this
+    script.
+    """
+    pos, idat = 8, b""
+    while pos < len(data):
+        (length,) = struct.unpack(">I", data[pos : pos + 4])
+        tag = data[pos + 4 : pos + 8]
+        if tag == b"IDAT":
+            idat += data[pos + 8 : pos + 8 + length]
+        pos += 12 + length
+    return zlib.decompress(idat)
+
+
+SIZES = (16, 32, 48, 64, 128, 256, 512)
+ICO_SIZES = (16, 32, 48, 64, 128, 256)
+
+
 def main() -> None:
+    check = "--check" in sys.argv
     ASSETS.mkdir(parents=True, exist_ok=True)
     master = draw()
 
-    pngs = {}
-    for size in (16, 32, 48, 64, 128, 256, 512):
-        data = png_bytes(downsample(master, size))
-        pngs[size] = data
+    pngs = {size: png_bytes(downsample(master, size)) for size in SIZES}
+    ico = ico_bytes({s: pngs[s] for s in ICO_SIZES})
+
+    if check:
+        for size, data in pngs.items():
+            path = ASSETS / f"icon-{size}.png"
+            if not path.exists():
+                raise SystemExit(f"{path} is missing")
+            if png_pixels(path.read_bytes()) != png_pixels(data):
+                raise SystemExit(f"{path} does not match this script's output")
+            print(f"assets/icon-{size}.png  ok")
+        if not (ASSETS / "icon.ico").exists():
+            raise SystemExit("assets/icon.ico is missing")
+        print("assets/icon.ico          ok")
+        return
+
+    for size, data in pngs.items():
         (ASSETS / f"icon-{size}.png").write_bytes(data)
         print(f"assets/icon-{size}.png  {len(data):>7} bytes")
-
-    ico = ico_bytes({s: pngs[s] for s in (16, 32, 48, 64, 128, 256)})
     (ASSETS / "icon.ico").write_bytes(ico)
     print(f"assets/icon.ico          {len(ico):>7} bytes")
 

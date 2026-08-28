@@ -109,11 +109,17 @@ jobs:
           powershell -Command "Compress-Archive -Path 'dist/$STAGE/*' -DestinationPath 'dist/$STAGE.zip'"
           rm -rf "dist/$STAGE"
 
+      # WiX is pinned to v5. From v6 onwards the toolset is gated behind the
+      # Open Source Maintenance Fee EULA, which a build must not accept on the
+      # maintainer's behalf. v5 is free to use and understands the same
+      # authoring schema as packaging/wix/main.wxs.
       - name: Build MSI
         shell: pwsh
         run: |
-          dotnet tool install --global wix
-          wix extension add -g WixToolset.UI.wixext
+          dotnet tool install --global wix --version 5.*
+          $wix = (wix --version) -replace '\+.*', ''
+          Write-Host "WiX $wix"
+          wix extension add -g "WixToolset.UI.wixext/$wix"
           $version = "${{ steps.v.outputs.version }}"
           wix build packaging/wix/main.wxs `
             -ext WixToolset.UI.wixext `
