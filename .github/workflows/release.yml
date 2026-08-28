@@ -121,10 +121,13 @@ jobs:
           Write-Host "WiX $wix"
           wix extension add -g "WixToolset.UI.wixext/$wix"
           $version = "${{ steps.v.outputs.version }}"
+          # -pdbtype none: the .wixpdb is a build symbol file, not something
+          # to publish next to the installer or to list in SHA256SUMS.
           wix build packaging/wix/main.wxs `
             -ext WixToolset.UI.wixext `
             -d Version=$version `
             -arch x64 `
+            -pdbtype none `
             -o "dist/no-watermark-$version-x86_64.msi"
 
       - uses: actions/upload-artifact@v4
