@@ -96,9 +96,16 @@
                      System="yes" />
       </Component>
 
-      <Component Id="Docs" Directory="INSTALLFOLDER">
+      <!-- One file per component. WiX can only generate a component GUID
+           automatically when the component holds a single file, or when its
+           keypath is a versioned file and the rest are unversioned. README.md
+           and LICENSE are both unversioned, so they cannot share one. -->
+      <Component Id="ReadmeDoc" Directory="INSTALLFOLDER">
         <File Id="ReadmeFile" Source="README.md" KeyPath="yes" />
-        <File Id="LicenseFile" Source="LICENSE" />
+      </Component>
+
+      <Component Id="LicenseDoc" Directory="INSTALLFOLDER">
+        <File Id="LicenseFile" Source="LICENSE" KeyPath="yes" />
       </Component>
     </ComponentGroup>
   </Package>
