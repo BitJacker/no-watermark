@@ -36,7 +36,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
-            libxkbcommon-dev libwayland-dev libxcb1-dev
+            libxkbcommon-dev libwayland-dev libxcb1-dev desktop-file-utils
 
       - name: Formatting
         run: cargo fmt --all -- --check
@@ -52,3 +52,30 @@ jobs:
       - name: Icons match their generator
         if: runner.os == 'Linux'
         run: python3 packaging/make_icons.py --check
+
+      # The packaging sources are only exercised by the release workflow, which
+      # runs on tags. Without this, a typo in them is discovered during a
+      # release instead of during the pull request that introduced it.
+      - name: Packaging sources are well formed
+        if: runner.os == 'Linux'
+        run: |
+          python3 -m pip install --quiet defusedxml
+          python3 - <<'PY'
+          import re, sys
+          from defusedxml.minidom import parseString
+
+          for path in ("packaging/wix/main.wxs",
+                       "packaging/linux/no-watermark.metainfo.xml"):
+              src = open(path, encoding="utf-8").read()
+              parseString(src.encode("utf-8"))
+              # XML forbids a double hyphen inside a comment, and every WiX
+              # command line is full of them.
+              for comment in re.findall(r"<!--.*?-->", src, re.S):
+                  if "--" in comment[4:-3]:
+                      sys.exit(f"{path}: double hyphen inside an XML comment")
+              print(f"{path}: ok")
+          PY
+          bash -n packaging/linux/build-deb.sh
+          bash -n packaging/linux/build-appimage.sh
+          desktop-file-validate packaging/linux/no-watermark.desktop
+          echo "packaging sources: ok"
